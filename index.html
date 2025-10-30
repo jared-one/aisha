@@ -5,15 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Catching You 💖</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --cosmic-primary: #667eea;
+            --cosmic-secondary: #764ba2;
+            --cosmic-accent: #f093fb;
+            --cosmic-glow: #4facfe;
+            --scroll-progress: 0;
+            --mouse-x: 50%;
+            --mouse-y: 50%;
+        }
+
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+        }
         
         body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #667eea 100%);
             background-size: 400% 400%;
             animation: gradientFlow 15s ease infinite;
-            overflow: hidden;
-            height: 100vh;
+            overflow-x: hidden;
+            min-height: 100vh;
             color: white;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
@@ -23,6 +37,72 @@
             0%, 100% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
         }
+
+        /* ============================================
+           PERFORMANCE STATS
+        ============================================ */
+        .perf-stats {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.85);
+            color: #0f0;
+            padding: 10px 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 9px;
+            border-radius: 8px;
+            z-index: 10000;
+            pointer-events: none;
+            opacity: 0.9;
+            line-height: 1.5;
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            backdrop-filter: blur(10px);
+            display: none;
+        }
+
+        .perf-stats.visible {
+            display: block;
+        }
+
+        .perf-stats div {
+            margin: 2px 0;
+        }
+
+        .perf-stats .metric {
+            color: #00ff00;
+        }
+
+        .perf-stats .value {
+            color: #ffff00;
+            font-weight: bold;
+        }
+
+        .perf-stats .warning {
+            color: #ff6b6b;
+        }
+
+        .perf-stats .good {
+            color: #51cf66;
+        }
+
+        .toggle-stats {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 5px 10px;
+            font-size: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 10001;
+            font-family: monospace;
+        }
+
+        .toggle-stats:hover {
+            background: rgba(0, 0, 0, 0.7);
+        }
         
         canvas {
             position: fixed;
@@ -30,7 +110,9 @@
             left: 0;
             width: 100%;
             height: 100%;
-            cursor: pointer;
+            pointer-events: auto;
+            transform: translateZ(0);
+            will-change: transform;
         }
         
         #ui {
@@ -51,12 +133,16 @@
             display: none;
             text-align: center;
             max-width: 90%;
-            padding: 20px;
-            background: rgba(0, 0, 0, 0.3);
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 30px;
+            background: rgba(0, 0, 0, 0.4);
             border-radius: 30px;
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(15px);
             animation: fadeIn 0.5s ease;
             pointer-events: all;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
         }
         
         .screen.active {
@@ -64,26 +150,39 @@
         }
         
         @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.9); }
-            to { opacity: 1; transform: scale(1); }
+            from { opacity: 0; transform: scale(0.95) translateY(20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
         }
         
         h1 {
-            font-size: 3em;
+            font-size: clamp(2em, 5vw, 3.5em);
             margin-bottom: 0.5em;
-            text-shadow: 0 0 30px rgba(255, 255, 255, 0.8);
+            background: linear-gradient(135deg, #fff, var(--cosmic-accent), var(--cosmic-glow));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.5));
             animation: pulse 2s ease infinite;
+            line-height: 1.2;
+        }
+
+        h2 {
+            font-size: clamp(1.5em, 4vw, 2.5em);
+            margin-bottom: 0.5em;
+            color: white;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.6);
         }
         
         @keyframes pulse {
             0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
+            50% { transform: scale(1.03); }
         }
         
         p {
-            font-size: 1.3em;
+            font-size: 1.2em;
             margin: 0.5em 0;
-            line-height: 1.6;
+            line-height: 1.7;
+            color: rgba(255, 255, 255, 0.95);
         }
         
         button {
@@ -99,11 +198,26 @@
             transition: all 0.3s ease;
             font-weight: bold;
             pointer-events: all;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transform: translateX(-100%);
+            transition: transform 0.6s;
+        }
+
+        button:hover::before {
+            transform: translateX(100%);
         }
         
         button:hover {
             transform: translateY(-3px) scale(1.05);
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 15px 40px rgba(245, 87, 108, 0.5);
         }
         
         button:active {
@@ -119,17 +233,26 @@
             text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
             z-index: 20;
             pointer-events: none;
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
         }
         
         #timer {
             position: fixed;
             top: 20px;
-            left: 20px;
-            font-size: 1.8em;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 2em;
             font-weight: bold;
             text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
             z-index: 20;
             pointer-events: none;
+            padding: 10px 30px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
         }
         
         #instructions {
@@ -137,14 +260,16 @@
             bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 1.3em;
+            font-size: 1.2em;
             text-align: center;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.6);
             padding: 15px 30px;
             border-radius: 20px;
             z-index: 20;
             pointer-events: none;
             max-width: 90%;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
         
         .choice-grid {
@@ -164,12 +289,13 @@
             color: #333;
             padding: 20px 40px;
             border-radius: 20px;
-            font-size: 1.2em;
+            font-size: 1.3em;
             font-weight: bold;
             box-shadow: 0 10px 40px rgba(255, 215, 0, 0.6);
             animation: achievementPop 3s ease forwards;
             z-index: 30;
             display: none;
+            border: 2px solid rgba(255, 255, 255, 0.5);
         }
         
         @keyframes achievementPop {
@@ -185,46 +311,194 @@
             margin-top: 10px;
         }
         
-        @media (max-width: 600px) {
-            h1 { font-size: 2em; }
-            p { font-size: 1.1em; }
-            button { font-size: 1em; padding: 12px 30px; }
-            #score, #timer { font-size: 1.3em; }
+        .hidden { 
+            display: none !important; 
         }
-        
-        .hidden { display: none !important; }
         
         #typeInput {
             font-size: 1.5em;
             padding: 15px;
             border-radius: 15px;
             border: 3px solid #f093fb;
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.95);
             color: #333;
             text-align: center;
             margin: 20px 0;
             width: 80%;
             max-width: 400px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        #typeInput:focus {
+            outline: none;
+            border-color: #FFD700;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+            transform: scale(1.05);
+        }
+
+        /* Audio Visualizer */
+        .audio-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            z-index: 25;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .audio-container:hover {
+            background: rgba(0, 0, 0, 0.7);
+            transform: scale(1.05);
+        }
+
+        .audio-visual {
+            display: flex;
+            align-items: flex-end;
+            gap: 3px;
+            height: 25px;
+        }
+
+        .audio-bar {
+            width: 3px;
+            background: linear-gradient(to top, var(--cosmic-accent), var(--cosmic-glow));
+            border-radius: 2px;
+            transform-origin: bottom;
+            transition: transform 0.1s;
+        }
+
+        .audio-bar.playing {
+            animation: wave 0.6s ease-in-out infinite;
+        }
+
+        .audio-bar:nth-child(1) { height: 40%; animation-delay: 0ms; }
+        .audio-bar:nth-child(2) { height: 60%; animation-delay: 100ms; }
+        .audio-bar:nth-child(3) { height: 50%; animation-delay: 200ms; }
+        .audio-bar:nth-child(4) { height: 75%; animation-delay: 300ms; }
+        .audio-bar:nth-child(5) { height: 55%; animation-delay: 400ms; }
+
+        @keyframes wave {
+            0%, 100% { transform: scaleY(1); }
+            50% { transform: scaleY(1.5); }
+        }
+
+        .audio-icon {
+            font-size: 1.5em;
+        }
+
+        /* Progress bar for story */
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--cosmic-accent), var(--cosmic-glow));
+            z-index: 100;
+            transition: width 0.5s ease;
+            box-shadow: 0 0 10px var(--cosmic-glow);
+        }
+        
+        @media (max-width: 768px) {
+            h1 { font-size: 2em; }
+            h2 { font-size: 1.5em; }
+            p { font-size: 1em; }
+            button { font-size: 1em; padding: 12px 30px; }
+            #score, #timer { font-size: 1.3em; }
+            .audio-container { bottom: 10px; right: 10px; }
+            .toggle-stats { font-size: 8px; padding: 3px 6px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* Combo multiplier */
+        .combo-display {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            font-size: 1.5em;
+            font-weight: bold;
+            background: linear-gradient(135deg, #ff6b6b, #ff8787);
+            padding: 10px 20px;
+            border-radius: 15px;
+            z-index: 25;
+            display: none;
+            animation: comboScale 0.3s ease;
+            box-shadow: 0 5px 20px rgba(255, 107, 107, 0.5);
+        }
+
+        .combo-display.visible {
+            display: block;
+        }
+
+        @keyframes comboScale {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
         }
     </style>
 </head>
 <body>
+    <!-- Performance Stats -->
+    <button class="toggle-stats" onclick="game.toggleStats()">📊 Stats</button>
+    <div class="perf-stats" id="perfStats">
+        <div><span class="metric">FPS:</span> <span class="value" id="fps">60</span></div>
+        <div><span class="metric">Particles:</span> <span class="value" id="particleCount">0</span></div>
+        <div><span class="metric">Memory:</span> <span class="value" id="memUsage">N/A</span></div>
+        <div><span class="metric">Vec2 Pool:</span> <span class="value" id="poolStats">0/0</span></div>
+        <div><span class="metric">Reduction:</span> <span class="value" id="reductionFactor">1.00</span></div>
+        <div><span class="metric">State:</span> <span class="value" id="gameState">Init</span></div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+
+    <!-- Canvas -->
     <canvas id="canvas"></canvas>
+
+    <!-- Audio Player -->
+    <div class="audio-container" id="audioContainer" onclick="game.toggleMusic()">
+        <div class="audio-visual">
+            <div class="audio-bar"></div>
+            <div class="audio-bar"></div>
+            <div class="audio-bar"></div>
+            <div class="audio-bar"></div>
+            <div class="audio-bar"></div>
+        </div>
+        <div class="audio-icon">🎵</div>
+    </div>
+    <audio id="bgMusic" loop>
+        <source src="fallen-down.mp3" type="audio/mpeg">
+    </audio>
     
     <div id="score">💕 <span id="lpScore">0</span></div>
     <div id="timer" class="hidden">⏱️ <span id="timeLeft">0</span>s</div>
     <div id="instructions"></div>
     <div id="achievement" class="achievement"></div>
+    <div class="combo-display" id="comboDisplay">🔥 COMBO x<span id="comboValue">0</span>!</div>
     
     <div id="ui">
         <!-- TITLE SCREEN -->
         <div id="titleScreen" class="screen active">
             <h1>💖 Catching You 💖</h1>
             <p>🎂 Happy Birthday, Beautiful! 🎂</p>
-            <p class="subtitle">A love story & adventure made just for you...</p>
+            <p class="subtitle">An interactive love story & adventure made just for you...</p>
             <button onclick="game.start()">Start Our Journey ✨</button>
-            <p class="subtitle" style="margin-top: 20px; font-size: 0.8em;">
-                High Score: <span id="highScore">0</span> LP 🏆
+            <p class="subtitle" style="margin-top: 20px; font-size: 0.9em;">
+                🏆 High Score: <span id="highScore">0</span> LP<br>
+                🎮 Total Playthroughs: <span id="playCount">0</span>
             </p>
         </div>
         
@@ -243,7 +517,7 @@
         <!-- TYPE CHALLENGE SCREEN -->
         <div id="typeScreen" class="screen">
             <h2>💬 Quick! Type this: 💬</h2>
-            <p id="typePrompt" style="font-size: 2em; margin: 20px 0;"></p>
+            <p id="typePrompt" style="font-size: 2em; margin: 20px 0; font-weight: bold;"></p>
             <input type="text" id="typeInput" placeholder="Type here..." autocomplete="off">
             <p class="subtitle">Type it EXACTLY and press Enter!</p>
         </div>
@@ -253,98 +527,305 @@
             <div id="endingText"></div>
             <button onclick="game.restart()">Play Again 🔄</button>
             <button onclick="game.share()">Share My Score 📱</button>
+            <p class="subtitle" style="margin-top: 20px;">
+                Made with 💖 just for you
+            </p>
         </div>
     </div>
 
     <script>
+        'use strict';
+
         // ============================================
-        // 🎮 GAME ENGINE
+        // 🎮 PERFORMANCE MONITORING SYSTEM
+        // ============================================
+        
+        const PerfMonitor = (() => {
+            let frameCount = 0;
+            let lastTime = performance.now();
+            let fps = 60;
+            let fpsHistory = [];
+            
+            return Object.freeze({
+                update: () => {
+                    frameCount++;
+                    const now = performance.now();
+                    if (now >= lastTime + 1000) {
+                        fps = Math.round((frameCount * 1000) / (now - lastTime));
+                        fpsHistory.push(fps);
+                        if (fpsHistory.length > 10) fpsHistory.shift();
+                        
+                        frameCount = 0;
+                        lastTime = now;
+                        
+                        const fpsEl = document.getElementById('fps');
+                        if (fpsEl) {
+                            fpsEl.textContent = fps;
+                            fpsEl.className = fps >= 50 ? 'good' : fps >= 30 ? 'value' : 'warning';
+                        }
+                    }
+                },
+                getFPS: () => fps,
+                getAvgFPS: () => {
+                    if (fpsHistory.length === 0) return 60;
+                    return fpsHistory.reduce((a, b) => a + b, 0) / fpsHistory.length;
+                }
+            });
+        })();
+
+        function getMemoryUsage() {
+            if (performance.memory) {
+                const used = Math.round(performance.memory.usedJSHeapSize / 1048576);
+                const total = Math.round(performance.memory.totalJSHeapSize / 1048576);
+                return `${used}/${total}MB`;
+            }
+            return 'N/A';
+        }
+
+        function updatePerfStat(id, value, className = 'value') {
+            const el = document.getElementById(id);
+            if (el) {
+                el.textContent = value;
+                el.className = className;
+            }
+        }
+
+        // ============================================
+        // 💾 IMMUTABLE STATE MANAGEMENT
+        // ============================================
+        
+        const createState = (initialState) => {
+            let state = Object.freeze({ ...initialState });
+            const subscribers = new Set();
+            
+            return Object.freeze({
+                get: () => state,
+                update: (updater) => {
+                    const newState = Object.freeze({
+                        ...state,
+                        ...(typeof updater === 'function' ? updater(state) : updater)
+                    });
+                    state = newState;
+                    subscribers.forEach(fn => fn(newState));
+                    return newState;
+                },
+                subscribe: (fn) => {
+                    subscribers.add(fn);
+                    return () => subscribers.delete(fn);
+                }
+            });
+        };
+
+        // ============================================
+        // 🧮 VEC2 CLASS & OBJECT POOL
+        // ============================================
+        
+        class Vec2 {
+            constructor(x = 0, y = 0) {
+                this.x = x;
+                this.y = y;
+            }
+
+            set(x, y) {
+                this.x = x;
+                this.y = y;
+                return this;
+            }
+
+            add(v) {
+                this.x += v.x;
+                this.y += v.y;
+                return this;
+            }
+
+            multiply(scalar) {
+                this.x *= scalar;
+                this.y *= scalar;
+                return this;
+            }
+
+            lengthSq() {
+                return this.x * this.x + this.y * this.y;
+            }
+
+            distanceTo(v) {
+                const dx = this.x - v.x;
+                const dy = this.y - v.y;
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+        }
+
+        class Vec2Pool {
+            constructor(initialSize = 1000) {
+                this.pool = new Array(initialSize).fill(null).map(() => new Vec2());
+                this.used = 0;
+                this.maxSize = 5000;
+            }
+
+            acquire(x = 0, y = 0) {
+                if (this.used >= this.pool.length) {
+                    if (this.pool.length < this.maxSize) {
+                        this.pool.push(new Vec2(x, y));
+                    } else {
+                        this.used = 0;
+                    }
+                }
+                const vec = this.pool[this.used++];
+                vec.x = x;
+                vec.y = y;
+                return vec;
+            }
+
+            release(vec) {
+                if (this.used > 0) this.used--;
+            }
+
+            releaseAll() {
+                this.used = 0;
+            }
+
+            getStats() {
+                return {
+                    used: this.used,
+                    available: this.pool.length - this.used,
+                    total: this.pool.length
+                };
+            }
+        }
+
+        const vec2Pool = new Vec2Pool(2000);
+
+        // ============================================
+        // ✨ OPTIMIZED PARTICLE SYSTEM
+        // ============================================
+        
+        const createParticleSystem = (maxParticles) => {
+            const positions = new Float32Array(maxParticles * 2);
+            const velocities = new Float32Array(maxParticles * 2);
+            const lifetimes = new Float32Array(maxParticles);
+            const maxLifetimes = new Float32Array(maxParticles);
+            const sizes = new Float32Array(maxParticles);
+            const colors = new Array(maxParticles);
+            const rotations = new Float32Array(maxParticles);
+            const rotationSpeeds = new Float32Array(maxParticles);
+            
+            let count = 0;
+            
+            const spawn = (x, y, vx, vy, lifetime, size, color = '#ff69b4') => {
+                if (count >= maxParticles) {
+                    count = Math.floor(maxParticles * 0.8);
+                }
+                
+                const idx = count++;
+                const idx2 = idx * 2;
+                
+                positions[idx2] = x;
+                positions[idx2 + 1] = y;
+                velocities[idx2] = vx;
+                velocities[idx2 + 1] = vy;
+                lifetimes[idx] = lifetime;
+                maxLifetimes[idx] = lifetime;
+                sizes[idx] = size;
+                colors[idx] = color;
+                rotations[idx] = Math.random() * Math.PI * 2;
+                rotationSpeeds[idx] = (Math.random() - 0.5) * 0.2;
+                
+                return idx;
+            };
+            
+            const update = (dt, gravity = 0, width = 0, height = 0) => {
+                let writeIdx = 0;
+                
+                for (let i = 0; i < count; i++) {
+                    const idx2 = i * 2;
+                    
+                    velocities[idx2 + 1] += gravity * dt;
+                    positions[idx2] += velocities[idx2] * dt;
+                    positions[idx2 + 1] += velocities[idx2 + 1] * dt;
+                    
+                    rotations[i] += rotationSpeeds[i];
+                    
+                    lifetimes[i] -= dt;
+                    
+                    if (lifetimes[i] <= 0) continue;
+                    
+                    if (i !== writeIdx) {
+                        const wi2 = writeIdx * 2;
+                        positions[wi2] = positions[idx2];
+                        positions[wi2 + 1] = positions[idx2 + 1];
+                        velocities[wi2] = velocities[idx2];
+                        velocities[wi2 + 1] = velocities[idx2 + 1];
+                        lifetimes[writeIdx] = lifetimes[i];
+                        maxLifetimes[writeIdx] = maxLifetimes[i];
+                        sizes[writeIdx] = sizes[i];
+                        colors[writeIdx] = colors[i];
+                        rotations[writeIdx] = rotations[i];
+                        rotationSpeeds[writeIdx] = rotationSpeeds[i];
+                    }
+                    
+                    writeIdx++;
+                }
+                
+                count = writeIdx;
+            };
+            
+            return Object.freeze({
+                spawn,
+                update,
+                getCount: () => count,
+                getPositions: () => positions,
+                getVelocities: () => velocities,
+                getLifetimes: () => lifetimes,
+                getMaxLifetimes: () => maxLifetimes,
+                getSizes: () => sizes,
+                getColors: () => colors,
+                getRotations: () => rotations,
+                clear: () => { count = 0; }
+            });
+        };
+
+        // ============================================
+        // 🎨 OPTIMIZED RENDERING
         // ============================================
         
         const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        let W = canvas.width = window.innerWidth;
-        let H = canvas.height = window.innerHeight;
-        
-        window.addEventListener('resize', () => {
-            W = canvas.width = window.innerWidth;
-            H = canvas.height = window.innerHeight;
+        const ctx = canvas.getContext('2d', {
+            alpha: true,
+            desynchronized: true,
+            willReadFrequently: false
         });
         
-        // ============================================
-        // 🎵 AUDIO SYSTEM (No files needed!)
-        // ============================================
+        let W = canvas.width = window.innerWidth;
+        let H = canvas.height = window.innerHeight;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
         
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        canvas.width = W * dpr;
+        canvas.height = H * dpr;
+        canvas.style.width = `${W}px`;
+        canvas.style.height = `${H}px`;
+        ctx.scale(dpr, dpr);
         
-        const sounds = {
-            pop: (freq = 800) => {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.frequency.value = freq;
-                osc.type = 'sine';
-                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.1);
-            },
-            
-            success: () => {
-                [600, 800, 1000].forEach((freq, i) => {
-                    setTimeout(() => sounds.pop(freq), i * 50);
+        const rafDebounce = (fn) => {
+            let rafId = null;
+            return (...args) => {
+                if (rafId !== null) cancelAnimationFrame(rafId);
+                rafId = requestAnimationFrame(() => {
+                    rafId = null;
+                    fn(...args);
                 });
-            },
-            
-            miss: () => {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.frequency.setValueAtTime(400, audioCtx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.2);
-                osc.type = 'sawtooth';
-                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.2);
-            }
+            };
         };
         
-        // ============================================
-        // 💕 PARTICLE & HEART RENDERING
-        // ============================================
-        
-        class Particle {
-            constructor(x, y, color = '#fff') {
-                this.x = x;
-                this.y = y;
-                this.vx = (Math.random() - 0.5) * 10;
-                this.vy = -Math.random() * 10 - 5;
-                this.life = 1;
-                this.size = Math.random() * 8 + 4;
-                this.color = color;
-                this.rotation = Math.random() * Math.PI * 2;
-                this.rotationSpeed = (Math.random() - 0.5) * 0.2;
-            }
-            
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                this.vy += 0.3; // gravity
-                this.life -= 0.015;
-                this.rotation += this.rotationSpeed;
-            }
-            
-            draw() {
-                if (this.life <= 0) return;
-                ctx.globalAlpha = this.life;
-                drawHeart(this.x, this.y, this.size, this.color, this.rotation);
-                ctx.globalAlpha = 1;
-            }
-        }
-        
+        window.addEventListener('resize', rafDebounce(() => {
+            W = window.innerWidth;
+            H = window.innerHeight;
+            canvas.width = W * dpr;
+            canvas.height = H * dpr;
+            canvas.style.width = `${W}px`;
+            canvas.style.height = `${H}px`;
+            ctx.scale(dpr, dpr);
+        }));
+
         function drawHeart(x, y, size = 20, color = '#ff69b4', rotation = 0) {
             ctx.save();
             ctx.translate(x, y);
@@ -355,18 +836,15 @@
             const topCurveHeight = size * 0.3;
             ctx.moveTo(0, topCurveHeight);
             
-            // Left half
             ctx.bezierCurveTo(
                 -size / 2, -topCurveHeight,
                 -size, topCurveHeight / 2,
                 -size / 2, topCurveHeight + size / 2
             );
             
-            // Bottom point
             ctx.lineTo(0, topCurveHeight + size);
-            
-            // Right half
             ctx.lineTo(size / 2, topCurveHeight + size / 2);
+            
             ctx.bezierCurveTo(
                 size, topCurveHeight / 2,
                 size / 2, -topCurveHeight,
@@ -376,7 +854,6 @@
             ctx.closePath();
             ctx.fill();
             
-            // Glow effect
             ctx.shadowBlur = 15;
             ctx.shadowColor = color;
             ctx.fill();
@@ -384,41 +861,147 @@
             
             ctx.restore();
         }
-        
+
         // ============================================
-        // 🎮 GAME STATE
+        // 🎵 AUDIO SYSTEM
+        // ============================================
+        
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        const sounds = {
+            pop: (freq = 800) => {
+                try {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.frequency.value = freq;
+                    osc.type = 'sine';
+                    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.1);
+                } catch (e) {}
+            },
+            
+            success: () => {
+                [600, 800, 1000].forEach((freq, i) => {
+                    setTimeout(() => sounds.pop(freq), i * 50);
+                });
+            },
+            
+            miss: () => {
+                try {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.2);
+                    osc.type = 'sawtooth';
+                    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.2);
+                } catch (e) {}
+            }
+        };
+
+        // ============================================
+        // 🎮 MAIN GAME ENGINE
         // ============================================
         
         const game = {
-            state: 'title',
-            lp: 0,
-            highScore: parseInt(localStorage.getItem('catchingYouHighScore')) || 0,
-            storyProgress: 0,
-            currentMinigame: null,
-            particles: [],
-            achievements: [],
-            userChoices: [],
+            state: createState({
+                mode: 'title',
+                lp: 0,
+                highScore: parseInt(localStorage.getItem('catchingYouHighScore')) || 0,
+                playCount: parseInt(localStorage.getItem('catchingYouPlayCount')) || 0,
+                storyProgress: 0,
+                currentMinigame: null,
+                reductionFactor: 1.0,
+                isPaused: false,
+                musicPlaying: false,
+                combo: 0,
+                lastClickTime: 0
+            }),
             
-            // Minigame entities
+            particles: createParticleSystem(2000),
             clickableHearts: [],
             fallingHearts: [],
             basket: { x: W / 2, y: H - 100, size: 50, vx: 0 },
             timer: 0,
+            achievements: new Set(),
+            userChoices: [],
             
             init() {
-                document.getElementById('highScore').textContent = this.highScore;
+                document.getElementById('highScore').textContent = this.state.get().highScore;
+                document.getElementById('playCount').textContent = this.state.get().playCount;
                 this.startAnimationLoop();
                 this.setupControls();
                 this.spawnBackgroundHearts();
+                
+                // Subscribe to state changes
+                this.state.subscribe((newState) => {
+                    updatePerfStat('gameState', newState.mode);
+                });
+
+                // Setup audio error handling
+                const bgMusic = document.getElementById('bgMusic');
+                bgMusic.onerror = () => {
+                    console.warn('Audio file not found');
+                    const bars = document.querySelectorAll('.audio-bar');
+                    bars.forEach(bar => bar.classList.remove('playing'));
+                };
+            },
+
+            toggleStats() {
+                const stats = document.getElementById('perfStats');
+                stats.classList.toggle('visible');
+            },
+
+            toggleMusic() {
+                const bgMusic = document.getElementById('bgMusic');
+                const bars = document.querySelectorAll('.audio-bar');
+                const currentState = this.state.get();
+
+                if (currentState.musicPlaying) {
+                    bgMusic.pause();
+                    bars.forEach(bar => bar.classList.remove('playing'));
+                    this.state.update({ musicPlaying: false });
+                } else {
+                    bgMusic.play().then(() => {
+                        bars.forEach(bar => bar.classList.add('playing'));
+                        this.state.update({ musicPlaying: true });
+                    }).catch(e => console.warn('Audio play failed:', e));
+                }
             },
             
             start() {
-                this.lp = 0;
-                this.storyProgress = 0;
+                this.state.update({ 
+                    mode: 'story',
+                    lp: 0, 
+                    storyProgress: 0,
+                    combo: 0
+                });
                 this.userChoices = [];
+                this.achievements.clear();
                 this.updateScore();
                 this.showScreen('storyScreen');
                 this.showStory(0);
+
+                // Auto-start music
+                const bgMusic = document.getElementById('bgMusic');
+                const bars = document.querySelectorAll('.audio-bar');
+                bgMusic.play().then(() => {
+                    bars.forEach(bar => bar.classList.add('playing'));
+                    this.state.update({ musicPlaying: true });
+                }).catch(() => {});
+
+                // Update play count
+                const newPlayCount = this.state.get().playCount + 1;
+                this.state.update({ playCount: newPlayCount });
+                localStorage.setItem('catchingYouPlayCount', newPlayCount);
             },
             
             restart() {
@@ -426,36 +1009,71 @@
             },
             
             share() {
-                const text = `I scored ${this.lp} Love Points in "Catching You"! 💖 Best birthday game ever! 🎂`;
+                const currentState = this.state.get();
+                const text = `I scored ${currentState.lp} Love Points in "Catching You"! 💖\nBest birthday game ever! 🎂\nCan you beat my score?`;
                 if (navigator.share) {
-                    navigator.share({ text });
+                    navigator.share({ 
+                        title: 'Catching You 💖',
+                        text 
+                    });
                 } else {
-                    alert('Copy this:\n\n' + text);
+                    const textarea = document.createElement('textarea');
+                    textarea.value = text;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    this.showAchievement('📋 Copied to clipboard!');
                 }
             },
             
             updateScore() {
-                document.getElementById('lpScore').textContent = this.lp;
-                if (this.lp > this.highScore) {
-                    this.highScore = this.lp;
-                    localStorage.setItem('catchingYouHighScore', this.highScore);
+                const currentState = this.state.get();
+                document.getElementById('lpScore').textContent = currentState.lp;
+                if (currentState.lp > currentState.highScore) {
+                    this.state.update({ highScore: currentState.lp });
+                    localStorage.setItem('catchingYouHighScore', currentState.lp);
                 }
             },
             
             addLP(amount, reason = '') {
-                this.lp += amount;
+                const currentState = this.state.get();
+                const newLP = currentState.lp + amount;
+                this.state.update({ lp: newLP });
                 this.updateScore();
-                if (amount > 0) sounds.pop(800 + amount * 10);
+                
+                if (amount > 0) {
+                    sounds.pop(800 + amount * 10);
+                    
+                    // Combo system
+                    const now = Date.now();
+                    if (now - currentState.lastClickTime < 1000) {
+                        const newCombo = currentState.combo + 1;
+                        this.state.update({ combo: newCombo, lastClickTime: now });
+                        
+                        if (newCombo >= 5) {
+                            this.showCombo(newCombo);
+                            this.addLP(newCombo * 2);
+                        }
+                    } else {
+                        this.state.update({ combo: 1, lastClickTime: now });
+                    }
+                }
                 
                 // Check achievements
-                if (this.lp >= 50 && !this.achievements.includes('halfCentury')) {
+                if (newLP >= 50 && !this.achievements.has('halfCentury')) {
                     this.showAchievement('💰 50 Love Points! You\'re on fire!');
-                    this.achievements.push('halfCentury');
+                    this.achievements.add('halfCentury');
                 }
-                if (this.lp >= 100 && !this.achievements.includes('century')) {
+                if (newLP >= 100 && !this.achievements.has('century')) {
                     this.showAchievement('🏆 100 LP! LEGENDARY LOVER! 🏆');
-                    this.achievements.push('century');
-                    this.addLP(20); // Bonus!
+                    this.achievements.add('century');
+                    this.addLP(20);
+                }
+                if (newLP >= 200 && !this.achievements.has('twoHundred')) {
+                    this.showAchievement('👑 200 LP! ULTIMATE CHAMPION! 👑');
+                    this.achievements.add('twoHundred');
+                    this.addLP(50);
                 }
             },
             
@@ -468,6 +1086,15 @@
                     achDiv.style.display = 'none';
                 }, 3000);
             },
+
+            showCombo(comboValue) {
+                const comboDiv = document.getElementById('comboDisplay');
+                document.getElementById('comboValue').textContent = comboValue;
+                comboDiv.classList.add('visible');
+                setTimeout(() => {
+                    comboDiv.classList.remove('visible');
+                }, 1000);
+            },
             
             showScreen(screenId) {
                 document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -477,45 +1104,61 @@
             setInstructions(text) {
                 document.getElementById('instructions').innerHTML = text;
             },
+
+            updateProgress(progress) {
+                const progressBar = document.getElementById('progressBar');
+                progressBar.style.width = `${progress * 100}%`;
+            },
             
             // ============================================
-            // 📖 STORY SYSTEM
+            // 📖 ENHANCED STORY SYSTEM
             // ============================================
             
             showStory(index) {
-                // 🎨 EDIT HERE: Customize your story!
                 const stories = [
                     {
-                        text: `<h2>🌅 Chapter 1: The Beginning</h2>
-                               <p>You're walking through our favorite park where we first met...</p>
-                               <p>The sunset paints the sky in beautiful colors, just like that perfect day.</p>
-                               <p>What do you do, my love?</p>`,
+                        text: `<h2>🌅 Chapter 1: The Perfect Day</h2>
+                               <p>The sun sets in brilliant colors as we walk through the park where we first met.</p>
+                               <p>Your hand fits perfectly in mine, and the world feels right.</p>
+                               <p>What catches your attention first?</p>`,
                         choices: [
-                            { text: '💐 Pick flowers for me', lp: 10, nextGame: 'click' },
-                            { text: '💋 Steal a kiss under the tree', lp: 15, nextGame: 'click' },
-                            { text: '🎵 Play our song on your phone', lp: 12, nextGame: 'click' },
-                            { text: '😏 Challenge me to a race', lp: 8, nextGame: 'click' }
+                            { text: '🌸 The beautiful cherry blossoms', lp: 10, nextGame: 'click', path: 'romantic' },
+                            { text: '⭐ The first stars appearing', lp: 12, nextGame: 'click', path: 'dreamy' },
+                            { text: '🎵 A street musician playing our song', lp: 15, nextGame: 'click', path: 'musical' },
+                            { text: '😏 The playful look in my eyes', lp: 8, nextGame: 'click', path: 'playful' }
                         ]
                     },
                     {
-                        text: `<h2>⭐ Chapter 2: The Dance</h2>
-                               <p>As the stars come out, we start dancing...</p>
-                               <p>But wait! My heart is literally floating away! 😱</p>
-                               <p>You need to catch it before it's gone!</p>`,
+                        text: `<h2>💫 Chapter 2: The Challenge</h2>
+                               <p>As the evening deepens, I challenge you to a game...</p>
+                               <p>My heart is literally floating away into the sky! 😱</p>
+                               <p>You need to catch it before it's gone forever!</p>`,
                         choices: [
-                            { text: '🏃‍♀️ Chase it! Let\'s go!', lp: 0, nextGame: 'catch' }
+                            { text: '🏃‍♀️ I\'m ready! Let\'s do this!', lp: 5, nextGame: 'catch' }
                         ]
                     },
                     {
-                        text: `<h2>💫 Chapter 3: The Challenge</h2>
-                               <p>Amazing catch! You always know how to hold my heart 🥰</p>
-                               <p>But now... one final test!</p>
-                               <p>What will you promise me?</p>`,
+                        text: `<h2>🌟 Chapter 3: The Promise</h2>
+                               <p>You caught my heart! Just like you do every single day. 💕</p>
+                               <p>But now comes the real test...</p>
+                               <p>What do you promise me for this next year?</p>`,
                         choices: [
-                            { text: '💍 Forever and always', lp: 20, nextGame: 'type' },
-                            { text: '🌟 Every adventure together', lp: 18, nextGame: 'type' },
-                            { text: '😂 All the chaos and laughs', lp: 15, nextGame: 'type' },
-                            { text: '🌹 Endless love and surprises', lp: 22, nextGame: 'type' }
+                            { text: '💍 Forever and always together', lp: 25, nextGame: 'type', ending: 'soulmate' },
+                            { text: '🌍 Adventures around the world', lp: 22, nextGame: 'type', ending: 'adventurer' },
+                            { text: '🌹 Romance every single day', lp: 20, nextGame: 'type', ending: 'romantic' },
+                            { text: '😂 Endless laughter and chaos', lp: 18, nextGame: 'type', ending: 'chaotic' }
+                        ]
+                    },
+                    {
+                        text: `<h2>✨ Chapter 4: One More Thing...</h2>
+                               <p>Before we finish our journey tonight...</p>
+                               <p>I want you to know something special.</p>
+                               <p>What matters most to you about us?</p>`,
+                        choices: [
+                            { text: '💝 How deeply we understand each other', lp: 30, nextGame: 'click', ending: 'deep' },
+                            { text: '🌈 The joy we bring to each other', lp: 28, nextGame: 'click', ending: 'joyful' },
+                            { text: '🔥 The passion we share', lp: 26, nextGame: 'click', ending: 'passionate' },
+                            { text: '🌟 How we grow together', lp: 32, nextGame: 'click', ending: 'growth' }
                         ]
                     }
                 ];
@@ -524,6 +1167,9 @@
                     this.showEnding();
                     return;
                 }
+
+                // Update progress
+                this.updateProgress((index + 1) / stories.length);
                 
                 const story = stories[index];
                 document.getElementById('storyText').innerHTML = story.text;
@@ -536,11 +1182,15 @@
                     btn.textContent = choice.text;
                     btn.onclick = () => {
                         this.addLP(choice.lp);
-                        this.userChoices.push(i);
-                        this.storyProgress++;
+                        this.userChoices.push({
+                            index: i,
+                            path: choice.path,
+                            ending: choice.ending
+                        });
+                        this.state.update(s => ({ storyProgress: s.storyProgress + 1 }));
                         
-                        // Random surprise event!
-                        if (Math.random() < 0.3) {
+                        // Random surprise event
+                        if (Math.random() < 0.35) {
                             this.surpriseEvent();
                         }
                         
@@ -554,14 +1204,31 @@
             
             surpriseEvent() {
                 const events = [
-                    { text: '✨ A shooting star! +10 LP!', lp: 10 },
-                    { text: '🦋 A butterfly lands on your hand! +8 LP!', lp: 8 },
-                    { text: '🌹 You found a hidden rose! +12 LP!', lp: 12 },
-                    { text: '💫 Our song plays nearby! +15 LP!', lp: 15 }
+                    { text: '✨ A shooting star! Make a wish! +10 LP!', lp: 10 },
+                    { text: '🦋 A butterfly lands on your hand! +12 LP!', lp: 12 },
+                    { text: '🌹 You found a hidden rose for me! +15 LP!', lp: 15 },
+                    { text: '💫 Our song plays in the distance! +18 LP!', lp: 18 },
+                    { text: '🎁 A surprise gift appears! +20 LP!', lp: 20 },
+                    { text: '🌙 The moon shines extra bright! +8 LP!', lp: 8 },
+                    { text: '💕 A wave of pure love! +25 LP!', lp: 25 }
                 ];
                 const event = events[Math.floor(Math.random() * events.length)];
                 this.showAchievement(event.text);
                 this.addLP(event.lp);
+                
+                // Extra particle effects
+                for (let i = 0; i < 30; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 100 + 50;
+                    this.particles.spawn(
+                        W / 2, H / 2,
+                        Math.cos(angle) * speed,
+                        Math.sin(angle) * speed,
+                        1.5, 
+                        Math.random() * 8 + 4,
+                        ['#FFD700', '#ff69b4', '#00ffff'][Math.floor(Math.random() * 3)]
+                    );
+                }
             },
             
             // ============================================
@@ -569,22 +1236,25 @@
             // ============================================
             
             prepareMinigame(gameType) {
-                this.currentMinigame = gameType;
+                this.state.update({ currentMinigame: gameType });
                 this.showScreen('gameScreen');
                 
                 const instructions = {
-                    click: `<h2>💕 Quick Reflexes!</h2>
-                            <p>Hearts will appear on screen...</p>
-                            <p><strong>TAP/CLICK them before they fade!</strong></p>
-                            <p>Fast clicks = More Love Points! ⚡</p>`,
-                    catch: `<h2>🧺 Catch My Heart!</h2>
-                            <p>Hearts are falling from the sky!</p>
-                            <p><strong>Move left/right to catch them!</strong></p>
-                            <p>🖱️ Mouse/Touch: Just move around<br>⌨️ Keyboard: Arrow keys or A/D</p>`,
+                    click: `<h2>💕 Lightning Reflexes!</h2>
+                            <p>Hearts will appear across the screen...</p>
+                            <p><strong>TAP/CLICK them as fast as you can!</strong></p>
+                            <p>⚡ Speed = More Points! Build combos!</p>
+                            <p class="subtitle">Hint: The faster you click, the more hearts spawn! 🔥</p>`,
+                    catch: `<h2>🧺 Heart Catcher!</h2>
+                            <p>Hearts are falling from the heavens!</p>
+                            <p><strong>Move left/right to catch them all!</strong></p>
+                            <p>🖱️ Mouse/Touch: Follow your cursor<br>
+                            ⌨️ Keyboard: Arrow keys or A/D</p>
+                            <p class="subtitle">Don't let any escape! 💖</p>`,
                     type: `<h2>💬 Speak From The Heart!</h2>
-                            <p>One final challenge to prove your love...</p>
-                            <p><strong>Type exactly what appears!</strong></p>
-                            <p>Fast and accurate = Mega points! 🔥</p>`
+                            <p>Type the words that appear on screen...</p>
+                            <p><strong>Fast and accurate = MEGA POINTS!</strong></p>
+                            <p class="subtitle">Show me how well you know the words of love! 💝</p>`
                 };
                 
                 document.getElementById('gameText').innerHTML = instructions[gameType];
@@ -592,10 +1262,11 @@
             
             startCurrentMinigame() {
                 this.setInstructions('');
-                this.showScreen('ui'); // Hide all screens
+                this.showScreen('ui');
                 document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
                 
-                switch(this.currentMinigame) {
+                const currentState = this.state.get();
+                switch(currentState.currentMinigame) {
                     case 'click':
                         this.startClickGame();
                         break;
@@ -609,51 +1280,75 @@
             },
             
             // ============================================
-            // 🎯 MINIGAME 1: Click Hearts
+            // 🎯 MINIGAME 1: Click Hearts (Enhanced)
             // ============================================
             
             startClickGame() {
-                this.state = 'clickGame';
+                this.state.update({ mode: 'clickGame', combo: 0 });
                 this.clickableHearts = [];
-                this.timer = 15; // 15 seconds
+                this.timer = 20;
                 document.getElementById('timer').classList.remove('hidden');
                 
+                let spawnInterval = 600;
+                let lastSpawnTime = 0;
+                
                 const spawnHeart = () => {
-                    if (this.state !== 'clickGame') return;
+                    const currentState = this.state.get();
+                    if (currentState.mode !== 'clickGame') return;
                     
-                    this.clickableHearts.push({
-                        x: Math.random() * (W - 100) + 50,
-                        y: Math.random() * (H - 100) + 50,
-                        size: 25 + Math.random() * 20,
-                        life: 1,
-                        maxLife: 0.8 + Math.random() * 0.5, // Random fade speed!
-                        color: ['#ff69b4', '#ff1493', '#ff69b4', '#ffc0cb'][Math.floor(Math.random() * 4)],
-                        rotation: Math.random() * Math.PI * 2,
-                        pulse: 1
-                    });
+                    const now = Date.now();
+                    if (now - lastSpawnTime < spawnInterval * currentState.reductionFactor) return;
+                    lastSpawnTime = now;
                     
-                    setTimeout(spawnHeart, 600 + Math.random() * 800);
+                    // Adaptive difficulty: spawn more hearts if combo is high
+                    const comboMultiplier = Math.min(1 + currentState.combo * 0.1, 2);
+                    
+                    for (let i = 0; i < comboMultiplier; i++) {
+                        this.clickableHearts.push({
+                            x: Math.random() * (W - 100) + 50,
+                            y: Math.random() * (H - 150) + 50,
+                            size: 25 + Math.random() * 20,
+                            life: 1,
+                            maxLife: 0.8 + Math.random() * 0.6,
+                            color: ['#ff69b4', '#ff1493', '#ffc0cb', '#FFD700', '#00ffff'][Math.floor(Math.random() * 5)],
+                            rotation: Math.random() * Math.PI * 2,
+                            pulse: 1,
+                            worth: Math.floor(Math.random() * 3) + 3
+                        });
+                    }
+                    
+                    requestAnimationFrame(spawnHeart);
                 };
                 
                 spawnHeart();
-                this.setInstructions('💕 TAP THE HEARTS! 💕');
+                this.setInstructions('💕 TAP THE HEARTS! Build combos for bonus points! 💕');
             },
             
             clickHeart(x, y) {
-                if (this.state !== 'clickGame') return;
+                const currentState = this.state.get();
+                if (currentState.mode !== 'clickGame') return;
                 
                 for (let i = this.clickableHearts.length - 1; i >= 0; i--) {
                     const heart = this.clickableHearts[i];
                     const dist = Math.hypot(x - heart.x, y - heart.y);
                     
-                    if (dist < heart.size && heart.life > 0.2) {
-                        // Success!
-                        const points = Math.ceil(5 + (heart.life * 10)); // More points for fast clicks
+                    if (dist < heart.size * 1.5 && heart.life > 0.15) {
+                        const speedBonus = Math.ceil(heart.life * 10);
+                        const points = heart.worth + speedBonus;
                         this.addLP(points);
                         
                         // Particle explosion
-                        for (let j = 0; j < 8; j++) {
-                            this.particles.push(new Particle(heart.x, heart.y, heart.color));
+                        for (let j = 0; j < 12; j++) {
+                            const angle = (Math.PI * 2 * j) / 12;
+                            const speed = Math.random() * 150 + 100;
+                            this.particles.spawn(
+                                heart.x, heart.y,
+                                Math.cos(angle) * speed,
+                                Math.sin(angle) * speed,
+                                0.8,
+                                Math.random() * 6 + 3,
+                                heart.color
+                            );
                         }
                         
                         sounds.pop(1000 + points * 20);
@@ -664,42 +1359,58 @@
             },
             
             // ============================================
-            // 🧺 MINIGAME 2: Catch Hearts
+            // 🧺 MINIGAME 2: Catch Hearts (Enhanced)
             // ============================================
             
             startCatchGame() {
-                this.state = 'catchGame';
+                this.state.update({ mode: 'catchGame' });
                 this.fallingHearts = [];
                 this.basket.x = W / 2;
                 this.basket.vx = 0;
-                this.timer = 25; // 25 seconds
+                this.timer = 30;
                 document.getElementById('timer').classList.remove('hidden');
                 
+                let difficulty = 1;
+                let lastDifficultyIncrease = Date.now();
+                
                 const spawnFalling = () => {
-                    if (this.state !== 'catchGame') return;
+                    const currentState = this.state.get();
+                    if (currentState.mode !== 'catchGame') return;
                     
-                    this.fallingHearts.push({
-                        x: Math.random() * W,
-                        y: -30,
-                        vy: 3 + Math.random() * 3,
-                        size: 20 + Math.random() * 15,
-                        rotation: Math.random() * Math.PI * 2,
-                        rotSpeed: (Math.random() - 0.5) * 0.1,
-                        color: ['#ff69b4', '#ff1493', '#ffc0cb'][Math.floor(Math.random() * 3)]
-                    });
+                    // Increase difficulty over time
+                    const now = Date.now();
+                    if (now - lastDifficultyIncrease > 5000) {
+                        difficulty = Math.min(difficulty + 0.2, 2.5);
+                        lastDifficultyIncrease = now;
+                    }
                     
-                    setTimeout(spawnFalling, 400 + Math.random() * 600);
+                    const spawnCount = Math.floor(1 + Math.random() * difficulty);
+                    
+                    for (let i = 0; i < spawnCount; i++) {
+                        this.fallingHearts.push({
+                            x: Math.random() * W,
+                            y: -30,
+                            vy: (3 + Math.random() * 3) * difficulty,
+                            size: 20 + Math.random() * 15,
+                            rotation: Math.random() * Math.PI * 2,
+                            rotSpeed: (Math.random() - 0.5) * 0.1,
+                            color: ['#ff69b4', '#ff1493', '#ffc0cb', '#FFD700'][Math.floor(Math.random() * 4)],
+                            worth: Math.floor(Math.random() * 3) + 5
+                        });
+                    }
+                    
+                    setTimeout(spawnFalling, 400 + Math.random() * 400 / difficulty);
                 };
                 
                 spawnFalling();
-                this.setInstructions('🧺 CATCH THEM ALL! Use mouse/touch/arrows 🧺');
+                this.setInstructions('🧺 CATCH THEM ALL! Difficulty increases! 🧺');
             },
             
             updateCatchGame() {
-                // Update basket position
+                // Update basket
                 this.basket.x += this.basket.vx;
                 this.basket.x = Math.max(50, Math.min(W - 50, this.basket.x));
-                this.basket.vx *= 0.9; // Friction
+                this.basket.vx *= 0.88;
                 
                 // Update falling hearts
                 for (let i = this.fallingHearts.length - 1; i >= 0; i--) {
@@ -707,45 +1418,67 @@
                     heart.y += heart.vy;
                     heart.rotation += heart.rotSpeed;
                     
-                    // Check collision with basket
-                    if (heart.y > this.basket.y - 40 && 
-                        heart.y < this.basket.y + 20 &&
-                        Math.abs(heart.x - this.basket.x) < 50) {
+                    // Check collision
+                    if (heart.y > this.basket.y - 50 && 
+                        heart.y < this.basket.y + 30 &&
+                        Math.abs(heart.x - this.basket.x) < 60) {
                         
-                        this.addLP(5);
-                        for (let j = 0; j < 5; j++) {
-                            this.particles.push(new Particle(heart.x, heart.y, heart.color));
+                        this.addLP(heart.worth);
+                        
+                        // Particle burst
+                        for (let j = 0; j < 8; j++) {
+                            const angle = (Math.PI * 2 * j) / 8;
+                            this.particles.spawn(
+                                heart.x, heart.y,
+                                Math.cos(angle) * 80,
+                                Math.sin(angle) * 80,
+                                0.6,
+                                Math.random() * 5 + 2,
+                                heart.color
+                            );
                         }
-                        sounds.pop(1000);
+                        
+                        sounds.pop(1000 + heart.worth * 15);
                         this.fallingHearts.splice(i, 1);
-                    } else if (heart.y > H + 30) {
+                    } else if (heart.y > H + 50) {
                         this.fallingHearts.splice(i, 1);
                     }
                 }
                 
-                // Draw basket
-                ctx.font = '60px Arial';
+                // Draw basket with glow
+                ctx.save();
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = '#ff69b4';
+                ctx.font = '70px Arial';
                 ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
                 ctx.fillText('🧺', this.basket.x, this.basket.y);
+                ctx.restore();
             },
             
             // ============================================
-            // ⌨️ MINIGAME 3: Type Challenge
+            // ⌨️ MINIGAME 3: Type Challenge (Enhanced)
             // ============================================
             
             startTypeGame() {
-                this.state = 'typeGame';
+                this.state.update({ mode: 'typeGame' });
                 this.showScreen('typeScreen');
                 
-                // 🎨 EDIT HERE: Add your own phrases!
                 const phrases = [
                     'I LOVE YOU',
-                    'FOREVER',
+                    'FOREVER YOURS',
                     'YOU AND ME',
                     'BEST DAY EVER',
                     'HAPPY BIRTHDAY',
                     'MY EVERYTHING',
-                    'ALWAYS'
+                    'ALWAYS TOGETHER',
+                    'YOU COMPLETE ME',
+                    'SOUL MATES',
+                    'ENDLESS LOVE',
+                    'DREAM COME TRUE',
+                    'PERFECT MATCH',
+                    'MY UNIVERSE',
+                    'HEARTS ALIGNED'
                 ];
                 
                 const phrase = phrases[Math.floor(Math.random() * phrases.length)];
@@ -756,52 +1489,67 @@
                 input.focus();
                 
                 const startTime = Date.now();
+                let attempts = 0;
                 
-                input.onkeypress = (e) => {
+                const checkInput = (e) => {
                     if (e.key === 'Enter') {
+                        attempts++;
                         const typed = input.value.trim().toUpperCase();
                         const timeSpent = (Date.now() - startTime) / 1000;
                         
                         if (typed === phrase) {
-                            // Perfect!
-                            const speedBonus = Math.max(0, Math.floor(20 - timeSpent));
-                            this.addLP(20 + speedBonus);
+                            // Perfect match!
+                            const speedBonus = Math.max(0, Math.floor(30 - timeSpent * 2));
+                            const attemptBonus = attempts === 1 ? 15 : 0;
+                            const totalBonus = 25 + speedBonus + attemptBonus;
+                            
+                            this.addLP(totalBonus);
                             sounds.success();
-                            this.showAchievement(`💯 PERFECT! +${20 + speedBonus} LP!`);
+                            this.showAchievement(`💯 PERFECT! ${timeSpent.toFixed(1)}s! +${totalBonus} LP!`);
                             
                             // Mega confetti
-                            for (let i = 0; i < 50; i++) {
-                                this.particles.push(new Particle(
-                                    Math.random() * W,
-                                    Math.random() * H,
-                                    ['#FFD700', '#ff69b4', '#00ffff'][Math.floor(Math.random() * 3)]
-                                ));
+                            for (let i = 0; i < 100; i++) {
+                                const angle = Math.random() * Math.PI * 2;
+                                const speed = Math.random() * 200 + 100;
+                                this.particles.spawn(
+                                    W / 2, H / 2,
+                                    Math.cos(angle) * speed,
+                                    Math.sin(angle) * speed,
+                                    2,
+                                    Math.random() * 10 + 5,
+                                    ['#FFD700', '#ff69b4', '#00ffff', '#fff'][Math.floor(Math.random() * 4)]
+                                );
                             }
                             
+                            input.onkeypress = null;
                             setTimeout(() => {
-                                this.storyProgress++;
-                                this.showStory(this.storyProgress);
+                                this.state.update(s => ({ storyProgress: s.storyProgress + 1 }));
+                                this.showStory(this.state.get().storyProgress);
                             }, 2000);
                         } else {
-                            // Close enough?
+                            // Check similarity
                             const similarity = this.calculateSimilarity(typed, phrase);
                             if (similarity > 0.7) {
-                                this.addLP(10);
-                                this.showAchievement('😅 Close enough! +10 LP');
+                                this.addLP(15);
+                                this.showAchievement('😅 Close enough! +15 LP');
                                 sounds.pop();
+                                input.onkeypress = null;
                                 setTimeout(() => {
-                                    this.storyProgress++;
-                                    this.showStory(this.storyProgress);
+                                    this.state.update(s => ({ storyProgress: s.storyProgress + 1 }));
+                                    this.showStory(this.state.get().storyProgress);
                                 }, 2000);
                             } else {
                                 sounds.miss();
                                 input.value = '';
-                                this.setInstructions('❌ Try again! Type it exactly!');
+                                input.style.animation = 'shake 0.5s';
+                                setTimeout(() => input.style.animation = '', 500);
+                                this.setInstructions('❌ Not quite! Try again!');
                             }
                         }
                     }
                 };
                 
+                input.onkeypress = checkInput;
                 this.setInstructions('⌨️ Type it EXACTLY and press Enter! ⌨️');
             },
             
@@ -815,41 +1563,57 @@
             },
             
             // ============================================
-            // 🏆 ENDING SYSTEM
+            // 🏆 ENHANCED ENDING SYSTEM
             // ============================================
             
             showEnding() {
-                this.state = 'ending';
+                this.state.update({ mode: 'ending' });
                 this.showScreen('endingScreen');
                 document.getElementById('timer').classList.add('hidden');
+                this.updateProgress(1);
                 
-                // Calculate ending based on LP and choices
+                const currentState = this.state.get();
+                const lp = currentState.lp;
+                
+                // Determine ending based on choices and score
+                const lastChoice = this.userChoices[this.userChoices.length - 1];
+                const endingType = lastChoice?.ending || 'default';
+                
                 let ending = {};
                 
-                // 🎨 EDIT HERE: Customize endings!
-                if (this.lp >= 150) {
+                if (lp >= 250) {
                     ending = {
-                        title: '💍 SOULMATE STATUS ACHIEVED 💍',
-                        text: `<p><strong>WOW.</strong> You scored <span style="font-size: 2em; color: #FFD700;">${this.lp} LP</span>! 🏆</p>
-                               <p>You didn't just catch my heart... you caught my SOUL. 🥺</p>
-                               <p>Every moment with you is magic.</p>
-                               <p>Happy Birthday to the love of my life! 💖</p>
-                               <p><em>Fun fact: You're the reason I smile every day.</em> 😊</p>`,
-                        emoji: '💕💍✨'
+                        title: '💍 ULTIMATE SOULMATE STATUS 💍',
+                        text: `<p><strong>INCREDIBLE.</strong> You scored <span style="font-size: 2.5em; color: #FFD700;">${lp} LP</span>! 🏆👑</p>
+                               <p>You didn't just catch my heart... you became ONE with my soul. 💫</p>
+                               <p>Every moment with you transcends reality itself.</p>
+                               <p>Happy Birthday to my EVERYTHING! 💖✨</p>
+                               <p><em>You've unlocked the secret ending: We're literally perfect together.</em> 🌟</p>`,
+                        emoji: '💕💍✨👑🌟'
                     };
-                } else if (this.lp >= 100) {
+                } else if (lp >= 180) {
                     ending = {
-                        title: '🔥 LEGENDARY LOVE 🔥',
-                        text: `<p>Amazing! You scored <span style="font-size: 2em; color: #ff69b4;">${this.lp} LP</span>! 💕</p>
-                               <p>You really know how to make my heart race! ❤️</p>
-                               <p>Can't wait for more adventures together.</p>
-                               <p>Happy Birthday, beautiful! 🎂</p>`,
-                        emoji: '😘💖🎉'
+                        title: '🔥 LEGENDARY LOVE MASTER 🔥',
+                        text: `<p>AMAZING! You scored <span style="font-size: 2.2em; color: #FFD700;">${lp} LP</span>! 💖</p>
+                               <p>You know exactly how to make my heart race and my soul sing! ❤️</p>
+                               <p>Can't wait for infinite more adventures together.</p>
+                               <p>Happy Birthday, my legendary love! 🎂✨</p>
+                               <p><em>Our story is just beginning...</em> 📖💕</p>`,
+                        emoji: '😘💖🎉🔥✨'
                     };
-                } else if (this.lp >= 60) {
+                } else if (lp >= 120) {
                     ending = {
-                        title: '💝 SWEETHEART VIBES 💝',
-                        text: `<p>You got <span style="font-size: 2em; color: #ffc0cb;">${this.lp} LP</span>! 🎈</p>
+                        title: '💝 SWEETHEART CHAMPION 💝',
+                        text: `<p>Wonderful! You got <span style="font-size: 2em; color: #ff69b4;">${lp} LP</span>! 💕</p>
+                               <p>You really know how to catch my heart! 🥰</p>
+                               <p>Every day with you is a new adventure.</p>
+                               <p>Happy Birthday, beautiful! 🎂💖</p>`,
+                        emoji: '🥰💕🎂🌹'
+                    };
+                } else if (lp >= 70) {
+                    ending = {
+                        title: '💗 HEARTFELT PLAYER 💗',
+                        text: `<p>Nice! You scored <span style="font-size: 1.8em; color: #ffc0cb;">${lp} LP</span>! 🎈</p>
                                <p>You're still learning to catch me, huh? 😏</p>
                                <p>That's okay, we have forever to practice!</p>
                                <p>Happy Birthday, cutie! 💕</p>`,
@@ -857,40 +1621,53 @@
                     };
                 } else {
                     ending = {
-                        title: '😂 CHAOTIC LOVE 😂',
-                        text: `<p>You scored <span style="font-size: 2em;">${this.lp} LP</span>! 😅</p>
+                        title: '😂 CHAOTIC LOVE ENERGY 😂',
+                        text: `<p>You scored <span style="font-size: 1.8em;">${lp} LP</span>! 😅</p>
                                <p>My heart was TOO slippery for you today!</p>
-                               <p>But that's okay... I love our chaos! 💀</p>
-                               <p>Try again? I dare you! 😏</p>
+                               <p>But that's okay... I love our beautiful chaos! 💀💕</p>
+                               <p>Try again? I DARE you! 😏</p>
                                <p>Happy Birthday anyway, troublemaker! 😂🎂</p>`,
-                        emoji: '😜💕😂'
+                        emoji: '😜💕😂🎂'
                     };
                 }
                 
+                // Add specific ending flavor based on choices
+                if (endingType === 'soulmate') {
+                    ending.text += `<p style="margin-top: 20px; color: #FFD700;"><strong>⭐ Soulmate Path Complete ⭐</strong><br>
+                                   You chose forever. And I choose you. Always. 💍</p>`;
+                }
+                
                 document.getElementById('endingText').innerHTML = `
-                    <h1>${ending.emoji}</h1>
+                    <h1 style="font-size: 2.5em;">${ending.emoji}</h1>
                     <h2>${ending.title}</h2>
                     ${ending.text}
-                    <p style="margin-top: 30px; font-size: 0.9em; opacity: 0.8;">
-                        💝 Made with endless love just for you 💝
+                    <p style="margin-top: 30px; font-size: 1em; opacity: 0.9;">
+                        💝 Made with endless love, optimized with cutting-edge code 💝
                     </p>
-                    <p style="font-size: 0.8em; opacity: 0.6;">
-                        High Score: ${this.highScore} LP
+                    <p style="font-size: 0.9em; opacity: 0.7;">
+                        High Score: ${currentState.highScore} LP | Playthroughs: ${currentState.playCount}
                     </p>
                 `;
                 
-                // MEGA CONFETTI EXPLOSION
-                for (let i = 0; i < 100; i++) {
+                // MEGA CONFETTI FINALE
+                for (let i = 0; i < 150; i++) {
                     setTimeout(() => {
-                        this.particles.push(new Particle(
+                        const angle = Math.random() * Math.PI * 2;
+                        const speed = Math.random() * 300 + 150;
+                        this.particles.spawn(
                             Math.random() * W,
                             -50,
-                            ['#FFD700', '#ff69b4', '#00ffff', '#ff1493', '#ffc0cb'][Math.floor(Math.random() * 5)]
-                        ));
-                    }, i * 20);
+                            Math.cos(angle) * speed,
+                            Math.sin(angle) * speed,
+                            3,
+                            Math.random() * 12 + 6,
+                            ['#FFD700', '#ff69b4', '#00ffff', '#ff1493', '#ffc0cb', '#fff'][Math.floor(Math.random() * 6)]
+                        );
+                    }, i * 30);
                 }
                 
                 sounds.success();
+                setTimeout(() => sounds.success(), 500);
             },
             
             // ============================================
@@ -899,79 +1676,145 @@
             
             spawnBackgroundHearts() {
                 setInterval(() => {
-                    if (this.state === 'title' || this.state.includes('story')) {
-                        if (Math.random() < 0.3) {
-                            this.particles.push(new Particle(
+                    const currentState = this.state.get();
+                    if (currentState.mode === 'title' || currentState.mode === 'story') {
+                        if (Math.random() < 0.25 * currentState.reductionFactor) {
+                            const angle = Math.random() * Math.PI * 2;
+                            const speed = Math.random() * 30 + 20;
+                            this.particles.spawn(
                                 Math.random() * W,
                                 -20,
-                                'rgba(255, 255, 255, 0.3)'
-                            ));
+                                Math.cos(angle) * speed,
+                                Math.sin(angle) * speed,
+                                3,
+                                Math.random() * 6 + 3,
+                                'rgba(255, 255, 255, 0.4)'
+                            );
                         }
                     }
-                }, 200);
+                }, 300);
+            },
+
+            autoOptimize() {
+                const avgFPS = PerfMonitor.getAvgFPS();
+                const currentState = this.state.get();
+                let newReduction = currentState.reductionFactor;
+                
+                if (avgFPS < 30) {
+                    newReduction = Math.max(0.3, currentState.reductionFactor - 0.2);
+                } else if (avgFPS > 55 && currentState.reductionFactor < 1) {
+                    newReduction = Math.min(1, currentState.reductionFactor + 0.05);
+                }
+                
+                if (newReduction !== currentState.reductionFactor) {
+                    this.state.update({ reductionFactor: newReduction });
+                    updatePerfStat('reductionFactor', newReduction.toFixed(2), 
+                        newReduction >= 0.9 ? 'good' : newReduction >= 0.6 ? 'value' : 'warning');
+                }
             },
             
             startAnimationLoop() {
-                const animate = () => {
-                    ctx.clearRect(0, 0, W, H);
+                let lastTime = performance.now();
+                let frameCount = 0;
+                
+                const animate = (currentTime) => {
+                    requestAnimationFrame(animate);
                     
-                    // Update and draw particles
-                    for (let i = this.particles.length - 1; i >= 0; i--) {
-                        this.particles[i].update();
-                        this.particles[i].draw();
-                        if (this.particles[i].life <= 0) {
-                            this.particles.splice(i, 1);
-                        }
+                    const dt = Math.min((currentTime - lastTime) / 1000, 0.1);
+                    lastTime = currentTime;
+                    
+                    PerfMonitor.update();
+                    
+                    // Auto-optimize every 30 frames
+                    if (frameCount++ % 30 === 0) {
+                        this.autoOptimize();
+                        updatePerfStat('particleCount', this.particles.getCount());
+                        updatePerfStat('memUsage', getMemoryUsage());
+                        const poolStats = vec2Pool.getStats();
+                        updatePerfStat('poolStats', `${poolStats.used}/${poolStats.total}`);
                     }
                     
+                    const currentState = this.state.get();
+                    if (currentState.isPaused) return;
+                    
+                    // Clear canvas
+                    ctx.clearRect(0, 0, W, H);
+                    
+                    // Update and render particles
+                    this.particles.update(dt, 300);
+                    
+                    const positions = this.particles.getPositions();
+                    const lifetimes = this.particles.getLifetimes();
+                    const maxLifetimes = this.particles.getMaxLifetimes();
+                    const sizes = this.particles.getSizes();
+                    const colors = this.particles.getColors();
+                    const rotations = this.particles.getRotations();
+                    const count = this.particles.getCount();
+                    
+                    for (let i = 0; i < count; i++) {
+                        const idx2 = i * 2;
+                        const x = positions[idx2];
+                        const y = positions[idx2 + 1];
+                        const life = lifetimes[i] / maxLifetimes[i];
+                        const size = sizes[i];
+                        const color = colors[i];
+                        const rotation = rotations[i];
+                        
+                        ctx.globalAlpha = life;
+                        drawHeart(x, y, size, color, rotation);
+                    }
+                    ctx.globalAlpha = 1;
+                    
                     // Game-specific rendering
-                    if (this.state === 'clickGame') {
-                        // Update clickable hearts
+                    if (currentState.mode === 'clickGame') {
                         for (let i = this.clickableHearts.length - 1; i >= 0; i--) {
                             const heart = this.clickableHearts[i];
-                            heart.life -= 0.01;
-                            heart.pulse = 1 + Math.sin(Date.now() * 0.01) * 0.1;
+                            heart.life -= dt / heart.maxLife;
+                            heart.pulse = 1 + Math.sin(Date.now() * 0.01) * 0.15;
                             
                             if (heart.life <= 0) {
                                 this.clickableHearts.splice(i, 1);
                             } else {
-                                ctx.globalAlpha = heart.life;
+                                ctx.globalAlpha = Math.max(0.3, heart.life);
                                 drawHeart(heart.x, heart.y, heart.size * heart.pulse, heart.color, heart.rotation);
-                                ctx.globalAlpha = 1;
+                                
+                                // Draw point value
+                                ctx.font = 'bold 16px Arial';
+                                ctx.fillStyle = 'white';
+                                ctx.textAlign = 'center';
+                                ctx.fillText(`+${heart.worth}`, heart.x, heart.y - heart.size - 10);
                             }
                         }
-                    } else if (this.state === 'catchGame') {
+                        ctx.globalAlpha = 1;
+                    } else if (currentState.mode === 'catchGame') {
                         this.updateCatchGame();
                         
-                        // Draw falling hearts
                         this.fallingHearts.forEach(heart => {
                             drawHeart(heart.x, heart.y, heart.size, heart.color, heart.rotation);
                         });
                     }
                     
-                    requestAnimationFrame(animate);
-                };
-                
-                animate();
-                
-                // Timer countdown
-                setInterval(() => {
-                    if (this.state === 'clickGame' || this.state === 'catchGame') {
-                        this.timer -= 0.1;
-                        document.getElementById('timeLeft').textContent = Math.ceil(this.timer);
+                    // Timer countdown
+                    if (currentState.mode === 'clickGame' || currentState.mode === 'catchGame') {
+                        this.timer -= dt;
+                        document.getElementById('timeLeft').textContent = Math.ceil(Math.max(0, this.timer));
                         
                         if (this.timer <= 0) {
-                            // End minigame
-                            if (this.state === 'clickGame' || this.state === 'catchGame') {
-                                document.getElementById('timer').classList.add('hidden');
-                                this.storyProgress++;
-                                setTimeout(() => {
-                                    this.showStory(this.storyProgress);
-                                }, 500);
-                            }
+                            document.getElementById('timer').classList.add('hidden');
+                            this.state.update(s => ({ storyProgress: s.storyProgress + 1 }));
+                            setTimeout(() => {
+                                this.showStory(this.state.get().storyProgress);
+                            }, 500);
                         }
                     }
-                }, 100);
+                    
+                    // Release vec2 pool periodically
+                    if (frameCount % 120 === 0) {
+                        vec2Pool.releaseAll();
+                    }
+                };
+                
+                animate(performance.now());
             },
             
             // ============================================
@@ -979,7 +1822,6 @@
             // ============================================
             
             setupControls() {
-                // Mouse/Touch for clicking hearts
                 const getPos = (e) => {
                     const rect = canvas.getBoundingClientRect();
                     const clientX = e.clientX || (e.touches && e.touches[0].clientX);
@@ -993,6 +1835,20 @@
                 canvas.addEventListener('click', (e) => {
                     const pos = getPos(e);
                     this.clickHeart(pos.x, pos.y);
+                    
+                    // Spawn click effect
+                    for (let i = 0; i < 5; i++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const speed = Math.random() * 100 + 50;
+                        this.particles.spawn(
+                            pos.x, pos.y,
+                            Math.cos(angle) * speed,
+                            Math.sin(angle) * speed,
+                            0.5,
+                            Math.random() * 4 + 2,
+                            '#ffffff'
+                        );
+                    }
                 });
                 
                 canvas.addEventListener('touchstart', (e) => {
@@ -1002,40 +1858,33 @@
                 }, { passive: false });
                 
                 // Mouse/Touch move for basket
-                canvas.addEventListener('mousemove', (e) => {
-                    if (this.state === 'catchGame') {
+                const handleMove = (e) => {
+                    const currentState = this.state.get();
+                    if (currentState.mode === 'catchGame') {
                         const pos = getPos(e);
                         this.basket.x = pos.x;
                     }
-                });
+                };
                 
+                canvas.addEventListener('mousemove', handleMove, { passive: true });
                 canvas.addEventListener('touchmove', (e) => {
                     e.preventDefault();
-                    if (this.state === 'catchGame') {
-                        const pos = getPos(e);
-                        this.basket.x = pos.x;
-                    }
+                    handleMove(e);
                 }, { passive: false });
                 
                 // Keyboard controls
                 document.addEventListener('keydown', (e) => {
-                    if (this.state === 'catchGame') {
+                    const currentState = this.state.get();
+                    if (currentState.mode === 'catchGame') {
                         if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
-                            this.basket.vx = -15;
+                            this.basket.vx = -18;
                         }
                         if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
-                            this.basket.vx = 15;
+                            this.basket.vx = 18;
                         }
                     }
                     
-                    if (e.key === ' ' && this.state === 'title') {
-                        this.start();
-                    }
-                });
-                
-                // Spacebar to start
-                document.addEventListener('keypress', (e) => {
-                    if (e.key === ' ' && this.state === 'title') {
+                    if (e.key === ' ' && currentState.mode === 'title') {
                         e.preventDefault();
                         this.start();
                     }
@@ -1044,12 +1893,23 @@
         };
         
         // ============================================
-        // 🚀 INITIALIZE GAME
+        // 🚀 INITIALIZE
         // ============================================
         
         window.addEventListener('load', () => {
             game.init();
         });
+
+        // Add shake animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes shake {
+                0%, 100% { transform: translateX(0); }
+                25% { transform: translateX(-10px); }
+                75% { transform: translateX(10px); }
+            }
+        `;
+        document.head.appendChild(style);
         
     </script>
 </body>
