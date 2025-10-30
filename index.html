@@ -342,33 +342,35 @@
             position: fixed;
             bottom: 20px;
             right: 20px;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 15px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 15px 20px;
             border-radius: 15px;
             backdrop-filter: blur(10px);
             z-index: 25;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             border: 1px solid rgba(255, 255, 255, 0.2);
             cursor: pointer;
             transition: all 0.3s;
+            pointer-events: all;
         }
 
         .audio-container:hover {
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.8);
             transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(240, 147, 251, 0.5);
         }
 
         .audio-visual {
             display: flex;
             align-items: flex-end;
             gap: 3px;
-            height: 25px;
+            height: 30px;
         }
 
         .audio-bar {
-            width: 3px;
+            width: 4px;
             background: linear-gradient(to top, var(--cosmic-accent), var(--cosmic-glow));
             border-radius: 2px;
             transform-origin: bottom;
@@ -392,6 +394,17 @@
 
         .audio-icon {
             font-size: 1.5em;
+            transition: transform 0.3s;
+        }
+
+        .audio-container:hover .audio-icon {
+            transform: scale(1.2) rotate(5deg);
+        }
+
+        .audio-status {
+            font-size: 0.85em;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 500;
         }
 
         /* Progress bar for story */
@@ -404,24 +417,6 @@
             z-index: 100;
             transition: width 0.5s ease;
             box-shadow: 0 0 10px var(--cosmic-glow);
-        }
-        
-        @media (max-width: 768px) {
-            h1 { font-size: 2em; }
-            h2 { font-size: 1.5em; }
-            p { font-size: 1em; }
-            button { font-size: 1em; padding: 12px 30px; }
-            #score, #timer { font-size: 1.3em; }
-            .audio-container { bottom: 10px; right: 10px; }
-            .toggle-stats { font-size: 8px; padding: 3px 6px; }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            * {
-                animation-duration: 0.01ms !important;
-                animation-iteration-count: 1 !important;
-                transition-duration: 0.01ms !important;
-            }
         }
 
         /* Combo multiplier */
@@ -448,6 +443,36 @@
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.2); }
         }
+        
+        @media (max-width: 768px) {
+            h1 { font-size: 2em; }
+            h2 { font-size: 1.5em; }
+            p { font-size: 1em; }
+            button { font-size: 1em; padding: 12px 30px; }
+            #score, #timer { font-size: 1.3em; }
+            .audio-container { 
+                bottom: 10px; 
+                right: 10px;
+                padding: 10px 15px;
+            }
+            .audio-status { font-size: 0.75em; }
+            .toggle-stats { font-size: 8px; padding: 3px 6px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* Shake animation for errors */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
     </style>
 </head>
 <body>
@@ -460,6 +485,7 @@
         <div><span class="metric">Vec2 Pool:</span> <span class="value" id="poolStats">0/0</span></div>
         <div><span class="metric">Reduction:</span> <span class="value" id="reductionFactor">1.00</span></div>
         <div><span class="metric">State:</span> <span class="value" id="gameState">Init</span></div>
+        <div><span class="metric">Audio:</span> <span class="value" id="audioState">Waiting</span></div>
     </div>
 
     <!-- Progress Bar -->
@@ -478,6 +504,7 @@
             <div class="audio-bar"></div>
         </div>
         <div class="audio-icon">🎵</div>
+        <div class="audio-status" id="audioStatus">Click to play</div>
     </div>
     <audio id="bgMusic" loop>
         <source src="fallen-down.mp3" type="audio/mpeg">
@@ -499,6 +526,9 @@
             <p class="subtitle" style="margin-top: 20px; font-size: 0.9em;">
                 🏆 High Score: <span id="highScore">0</span> LP<br>
                 🎮 Total Playthroughs: <span id="playCount">0</span>
+            </p>
+            <p class="subtitle" style="margin-top: 15px; font-size: 0.75em; opacity: 0.7;">
+                💡 Tip: Click the music player at any time to toggle sound
             </p>
         </div>
         
@@ -863,7 +893,7 @@
         }
 
         // ============================================
-        // 🎵 AUDIO SYSTEM
+        // 🎵 ENHANCED AUDIO SYSTEM WITH AUTOPLAY FIX
         // ============================================
         
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -871,6 +901,9 @@
         const sounds = {
             pop: (freq = 800) => {
                 try {
+                    if (audioCtx.state === 'suspended') {
+                        audioCtx.resume();
+                    }
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
                     osc.connect(gain);
@@ -881,7 +914,9 @@
                     gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
                     osc.start();
                     osc.stop(audioCtx.currentTime + 0.1);
-                } catch (e) {}
+                } catch (e) {
+                    console.warn('Sound effect failed:', e);
+                }
             },
             
             success: () => {
@@ -892,6 +927,9 @@
             
             miss: () => {
                 try {
+                    if (audioCtx.state === 'suspended') {
+                        audioCtx.resume();
+                    }
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
                     osc.connect(gain);
@@ -903,7 +941,9 @@
                     gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
                     osc.start();
                     osc.stop(audioCtx.currentTime + 0.2);
-                } catch (e) {}
+                } catch (e) {
+                    console.warn('Sound effect failed:', e);
+                }
             }
         };
 
@@ -922,6 +962,7 @@
                 reductionFactor: 1.0,
                 isPaused: false,
                 musicPlaying: false,
+                musicAttempted: false,
                 combo: 0,
                 lastClickTime: 0
             }),
@@ -949,10 +990,16 @@
                 // Setup audio error handling
                 const bgMusic = document.getElementById('bgMusic');
                 bgMusic.onerror = () => {
-                    console.warn('Audio file not found');
-                    const bars = document.querySelectorAll('.audio-bar');
-                    bars.forEach(bar => bar.classList.remove('playing'));
+                    console.warn('Audio file "fallen-down.mp3" not found. Please ensure the file is in the same directory.');
+                    document.getElementById('audioStatus').textContent = 'No audio file';
+                    updatePerfStat('audioState', 'Missing', 'warning');
                 };
+
+                // Update audio context state
+                setInterval(() => {
+                    updatePerfStat('audioState', audioCtx.state, 
+                        audioCtx.state === 'running' ? 'good' : 'value');
+                }, 1000);
             },
 
             toggleStats() {
@@ -960,23 +1007,63 @@
                 stats.classList.toggle('visible');
             },
 
+            /**
+             * 🎵 FIXED MUSIC TOGGLE - HANDLES ALL AUTOPLAY RESTRICTIONS
+             */
             toggleMusic() {
                 const bgMusic = document.getElementById('bgMusic');
                 const bars = document.querySelectorAll('.audio-bar');
                 const currentState = this.state.get();
+                const statusEl = document.getElementById('audioStatus');
+
+                // Resume audio context if suspended (CRITICAL FIX)
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume().then(() => {
+                        console.log('AudioContext resumed successfully');
+                    });
+                }
 
                 if (currentState.musicPlaying) {
+                    // Pause music
                     bgMusic.pause();
                     bars.forEach(bar => bar.classList.remove('playing'));
                     this.state.update({ musicPlaying: false });
+                    statusEl.textContent = 'Paused';
                 } else {
-                    bgMusic.play().then(() => {
-                        bars.forEach(bar => bar.classList.add('playing'));
-                        this.state.update({ musicPlaying: true });
-                    }).catch(e => console.warn('Audio play failed:', e));
+                    // Play music
+                    bgMusic.play()
+                        .then(() => {
+                            bars.forEach(bar => bar.classList.add('playing'));
+                            this.state.update({ musicPlaying: true, musicAttempted: true });
+                            statusEl.textContent = 'Playing';
+                            console.log('Music started successfully');
+                        })
+                        .catch(error => {
+                            console.warn('Music play failed:', error);
+                            statusEl.textContent = 'Click again';
+                            
+                            // Retry on next user interaction
+                            const retryPlay = () => {
+                                if (audioCtx.state === 'suspended') {
+                                    audioCtx.resume();
+                                }
+                                bgMusic.play()
+                                    .then(() => {
+                                        bars.forEach(bar => bar.classList.add('playing'));
+                                        this.state.update({ musicPlaying: true });
+                                        statusEl.textContent = 'Playing';
+                                        document.body.removeEventListener('click', retryPlay);
+                                    })
+                                    .catch(() => {});
+                            };
+                            document.body.addEventListener('click', retryPlay, { once: true });
+                        });
                 }
             },
             
+            /**
+             * 🚀 START GAME - AUTO-STARTS MUSIC ON USER CLICK
+             */
             start() {
                 this.state.update({ 
                     mode: 'story',
@@ -990,13 +1077,56 @@
                 this.showScreen('storyScreen');
                 this.showStory(0);
 
-                // Auto-start music
+                // 🎵 AUTO-START MUSIC WITH PROPER AUTOPLAY HANDLING
                 const bgMusic = document.getElementById('bgMusic');
                 const bars = document.querySelectorAll('.audio-bar');
-                bgMusic.play().then(() => {
-                    bars.forEach(bar => bar.classList.add('playing'));
-                    this.state.update({ musicPlaying: true });
-                }).catch(() => {});
+                const statusEl = document.getElementById('audioStatus');
+                const currentState = this.state.get();
+
+                // Only attempt if not already attempted
+                if (!currentState.musicAttempted) {
+                    // Resume AudioContext (CRITICAL for autoplay policies)
+                    if (audioCtx.state === 'suspended') {
+                        audioCtx.resume().then(() => {
+                            console.log('AudioContext resumed on start');
+                        });
+                    }
+                    
+                    // Attempt to play music
+                    bgMusic.play()
+                        .then(() => {
+                            bars.forEach(bar => bar.classList.add('playing'));
+                            this.state.update({ musicPlaying: true, musicAttempted: true });
+                            statusEl.textContent = 'Playing';
+                            console.log('✅ Music auto-started successfully!');
+                        })
+                        .catch(error => {
+                            console.warn('Auto-play blocked:', error.message);
+                            statusEl.textContent = 'Click 🎵 to play';
+                            this.state.update({ musicAttempted: true });
+                            
+                            // Fallback: Play on next user interaction
+                            const fallbackPlay = () => {
+                                if (audioCtx.state === 'suspended') {
+                                    audioCtx.resume();
+                                }
+                                bgMusic.play()
+                                    .then(() => {
+                                        bars.forEach(bar => bar.classList.add('playing'));
+                                        this.state.update({ musicPlaying: true });
+                                        statusEl.textContent = 'Playing';
+                                        console.log('✅ Music started on fallback interaction');
+                                    })
+                                    .catch(() => {});
+                                
+                                document.body.removeEventListener('click', fallbackPlay);
+                                document.body.removeEventListener('touchstart', fallbackPlay);
+                            };
+                            
+                            document.body.addEventListener('click', fallbackPlay, { once: true });
+                            document.body.addEventListener('touchstart', fallbackPlay, { once: true });
+                        });
+                }
 
                 // Update play count
                 const newPlayCount = this.state.get().playCount + 1;
@@ -1010,20 +1140,30 @@
             
             share() {
                 const currentState = this.state.get();
-                const text = `I scored ${currentState.lp} Love Points in "Catching You"! 💖\nBest birthday game ever! 🎂\nCan you beat my score?`;
+                const text = `I scored ${currentState.lp} Love Points in "Catching You"! 💖\n\nBest birthday game ever! 🎂\n\nCan you beat my score?`;
+                
                 if (navigator.share) {
                     navigator.share({ 
                         title: 'Catching You 💖',
                         text 
-                    });
+                    }).catch(() => {});
                 } else {
+                    // Fallback: Copy to clipboard
                     const textarea = document.createElement('textarea');
                     textarea.value = text;
+                    textarea.style.position = 'fixed';
+                    textarea.style.opacity = '0';
                     document.body.appendChild(textarea);
                     textarea.select();
-                    document.execCommand('copy');
+                    
+                    try {
+                        document.execCommand('copy');
+                        this.showAchievement('📋 Copied to clipboard!');
+                    } catch (err) {
+                        this.showAchievement('❌ Copy failed - please manually copy your score');
+                    }
+                    
                     document.body.removeChild(textarea);
-                    this.showAchievement('📋 Copied to clipboard!');
                 }
             },
             
@@ -1898,18 +2038,9 @@
         
         window.addEventListener('load', () => {
             game.init();
+            console.log('🎮 Game initialized successfully!');
+            console.log('💡 Click "Start Our Journey ✨" to begin and auto-play music!');
         });
-
-        // Add shake animation
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes shake {
-                0%, 100% { transform: translateX(0); }
-                25% { transform: translateX(-10px); }
-                75% { transform: translateX(10px); }
-            }
-        `;
-        document.head.appendChild(style);
         
     </script>
 </body>
